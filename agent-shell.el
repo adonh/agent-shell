@@ -1532,14 +1532,13 @@ Set NEW-SESSION to start a separate new session."
                                :shell-buffer (map-elt state :buffer)
                                :existing-only t)))
     (with-current-buffer viewport-buffer
-      (let ((inhibit-read-only t))
-        (agent-shell-ui-delete-fragment :namespace-id (map-elt state :request-count) :block-id block-id))))
+      (agent-shell-ui-delete-fragment :namespace-id (map-elt state :request-count) :block-id block-id :no-undo t)))
   (with-current-buffer (map-elt state :buffer)
     (unless (and (derived-mode-p 'agent-shell-mode)
                  (equal (current-buffer)
                         (map-elt state :buffer)))
       (error "Editing the wrong buffer: %s" (current-buffer)))
-    (agent-shell-ui-delete-fragment :namespace-id (map-elt state :request-count) :block-id block-id)))
+    (agent-shell-ui-delete-fragment :namespace-id (map-elt state :request-count) :block-id block-id :no-undo t)))
 
 (cl-defun agent-shell--update-fragment (&key state block-id label-left label-right body append create-new navigation expanded)
   "Update fragment in the shell buffer.
@@ -1571,7 +1570,8 @@ by default."
                             :navigation navigation
                             :append append
                             :create-new create-new
-                            :expanded expanded))
+                            :expanded expanded
+                            :no-undo t))
                     (padding-start (map-nested-elt range '(:padding :start)))
                     (padding-end (map-nested-elt range '(:padding :end)))
                     (block-start (map-nested-elt range '(:block :start)))
@@ -1611,7 +1611,8 @@ by default."
                          :navigation navigation
                          :append append
                          :create-new create-new
-                         :expanded expanded))
+                         :expanded expanded
+                         :no-undo t))
                  (padding-start (map-nested-elt range '(:padding :start)))
                  (padding-end (map-nested-elt range '(:padding :end)))
                  (block-start (map-nested-elt range '(:block :start)))

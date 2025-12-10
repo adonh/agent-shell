@@ -50,7 +50,7 @@ NAMESPACE-ID, BLOCK-ID, LABEL-LEFT, LABEL-RIGHT, and BODY are the keys."
         (cons :label-right (agent-shell-ui--string-or-nil label-right))
         (cons :body (agent-shell-ui--string-or-nil body))))
 
-(cl-defun agent-shell-ui-update-fragment (model &key append create-new on-post-process navigation expanded)
+(cl-defun agent-shell-ui-update-fragment (model &key append create-new on-post-process navigation expanded no-undo)
   "Update or add a fragment using MODEL.
 
 When APPEND is non-nil, append to body instead of replacing.
@@ -60,10 +60,12 @@ When NAVIGATION is `never', block won't be TAB navigatable.
 When NAVIGATION is `auto', block is navigatable if non-empty body.
 When NAVIGATION is `always', block is always TAB navigatable.
 When EXPANDED is non-nil, body will be expanded by default.
+When NO-UNDO is non-nil, disable undo recording for this operation.
 
 For existing blocks, the current expansion state is preserved unless overridden."
   (save-mark-and-excursion
     (let* ((inhibit-read-only t)
+           (buffer-undo-list (if no-undo t buffer-undo-list))
            (namespace-id (map-elt model :namespace-id))
            (qualified-id (format "%s-%s" namespace-id (map-elt model :block-id)))
            (new-label-left (map-elt model :label-left))
@@ -174,10 +176,13 @@ For existing blocks, the current expansion state is preserved unless overridden.
             (setf (map-elt fragment :body) body)))))
     fragment))
 
-(cl-defun agent-shell-ui-delete-fragment (&key namespace-id block-id)
-  "Delete fragment with NAMESPACE-ID and BLOCK-ID."
+(cl-defun agent-shell-ui-delete-fragment (&key namespace-id block-id no-undo)
+  "Delete fragment with NAMESPACE-ID and BLOCK-ID.
+
+When NO-UNDO is non-nil, disable undo recording for this operation."
   (save-mark-and-excursion
     (let* ((inhibit-read-only t)
+           (buffer-undo-list (if no-undo t buffer-undo-list))
            (qualified-id (format "%s-%s" namespace-id block-id))
            (match (save-mark-and-excursion
                     (goto-char (point-max))
