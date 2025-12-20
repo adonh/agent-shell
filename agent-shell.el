@@ -2665,6 +2665,12 @@ If FILE-PATH is not an image, returns nil."
                      (unless success
                        (agent-shell--display-pending-requests))
                      (funcall (map-elt shell :finish-output) t)
+                     ;; Update viewport header (longer busy)
+                     (when-let ((viewport-buffer (agent-shell-viewport--buffer
+                                                  :shell-buffer (map-elt shell :buffer)
+                                                  :existing-only t)))
+                       (with-current-buffer viewport-buffer
+                         (agent-shell-viewport--update-header)))
                      (when success
                        (agent-shell--process-pending-request))))
      :on-failure (lambda (error raw-message)
@@ -2673,7 +2679,13 @@ If FILE-PATH is not an image, returns nil."
                    (funcall (agent-shell--make-error-handler :state agent-shell--state :shell shell)
                             error raw-message)
                    (agent-shell-heartbeat-stop
-                    :heartbeat (map-elt agent-shell--state :heartbeat))))))
+                    :heartbeat (map-elt agent-shell--state :heartbeat))
+                   ;; Update viewport header (longer busy)
+                   (when-let ((viewport-buffer (agent-shell-viewport--buffer
+                                                :shell-buffer (map-elt shell :buffer)
+                                                :existing-only t)))
+                     (with-current-buffer viewport-buffer
+                       (agent-shell-viewport--update-header)))))))
 
 ;;; Projects
 
