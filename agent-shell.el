@@ -3236,7 +3236,7 @@ For example:
                   ;; permission/tool call title, so it's hard to know
                   ;; what the permission is actually allowing.
                   ;; Display command if needed.
-                  (if (string-match command title)
+                  (if (string-match (or command "") title)
                       title
                     (or command title))))
          (diff-button (when diff
