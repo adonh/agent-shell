@@ -3230,15 +3230,19 @@ For example:
                                  (with-current-buffer shell-buffer
                                    (agent-shell-interrupt t))))
                    map))
-         (title (let ((title (map-nested-elt request '(params toolCall title)))
-                      (command (map-nested-elt request '(params toolCall rawInput command))))
+         (title (let* ((title (map-nested-elt request '(params toolCall title)))
+                       (command (map-nested-elt request '(params toolCall rawInput command)))
+                       (command-first-line (when command
+                                             (if (string-match "\n" command)
+                                                 (concat (substring command 0 (match-beginning 0)) "...")
+                                               command))))
                   ;; Some agents don't include the command in the
                   ;; permission/tool call title, so it's hard to know
                   ;; what the permission is actually allowing.
                   ;; Display command if needed.
-                  (if (string-match (or command "") title)
+                  (if (string-match-p (regexp-quote (or command "")) title)
                       title
-                    (or command title))))
+                    (or command-first-line title))))
          (diff-button (when diff
                         (agent-shell--make-permission-button
                          :text "View (v)"
