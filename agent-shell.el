@@ -3575,6 +3575,11 @@ ACTIONS as per `agent-shell--make-permission-action'."
                                             (kill-current-buffer))
                                           (with-current-buffer shell-buffer
                                             (agent-shell-interrupt t)))))
+                       (list :key "f"
+                             :description (concat "open " (file-name-nondirectory (map-elt diff :file)))
+                             :command (lambda ()
+                                        (interactive)
+                                        (find-file (map-elt diff :file))))
                        (list :key "q" :description "exit" :command 'kill-current-buffer))
        :on-exit (lambda ()
                   (if-let ((choice (condition-case nil
