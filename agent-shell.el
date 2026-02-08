@@ -506,10 +506,54 @@ HEARTBEAT, and AUTHENTICATE-REQUEST-MAKER."
         (cons :available-commands nil)
         (cons :available-modes nil)
         (cons :prompt-capabilities nil)
-        (cons :pending-requests nil)))
+        (cons :pending-requests nil)
+        (cons :usage (list (cons :total-tokens 0)
+                           (cons :input-tokens 0)
+                           (cons :output-tokens 0)
+                           (cons :thought-tokens 0)
+                           (cons :cached-read-tokens 0)
+                           (cons :cached-write-tokens 0)
+                           (cons :context-used 0)
+                           (cons :context-size 0)
+                           (cons :cost-amount 0.0)
+                           (cons :cost-currency nil)))))
 
 (defvar-local agent-shell--state
     (agent-shell--make-state))
+
+(cl-defun agent-shell--save-usage (&key state acp-usage)
+  "Update usage STATE from PromptResponse ACP-USAGE field.
+Extracts cumulative token counts from the response."
+  (let ((usage-state (map-elt state :usage)))
+    (when-let ((total (map-elt acp-usage 'totalTokens)))
+      (map-put! usage-state :total-tokens total))
+    (when-let ((input (map-elt acp-usage 'inputTokens)))
+      (map-put! usage-state :input-tokens input))
+    (when-let ((output (map-elt acp-usage 'outputTokens)))
+      (map-put! usage-state :output-tokens output))
+    (when-let ((thought (map-elt acp-usage 'thoughtTokens)))
+      (map-put! usage-state :thought-tokens thought))
+    (when-let ((cached-read (map-elt acp-usage 'cachedReadTokens)))
+      (map-put! usage-state :cached-read-tokens cached-read))
+    (when-let ((cached-write (map-elt acp-usage 'cachedWriteTokens)))
+      (map-put! usage-state :cached-write-tokens cached-write))
+    (map-put! state :usage usage-state)))
+
+(cl-defun agent-shell--update-usage-from-notification (&key state update)
+  "Update usage STATE from session/update notification UPDATE.
+Extracts context window and cost information from usage_update notification."
+  (let ((usage-state (map-elt state :usage)))
+    (when-let ((used (map-elt update 'used)))
+      (map-put! usage-state :context-used used))
+    (when-let ((size (map-elt update 'size)))
+      (map-put! usage-state :context-size size))
+    (when-let ((cost (map-elt update 'cost)))
+      (when-let ((amount (map-elt cost 'amount)))
+        (map-put! usage-state :cost-amount amount))
+      (when-let ((currency (map-elt cost 'currency)))
+        (map-put! usage-state :cost-currency currency)))
+    (map-put! state :usage usage-state)))
+
 
 (defvar-local agent-shell--transcript-file nil
   "Path to the shell's transcript file.")
@@ -1103,6 +1147,11 @@ otherwise returns COMMAND unchanged."
                ;; Silently handle config option updates (e.g., from set_model/set_mode)
                ;; These are informational notifications that don't require user-visible output
                ;; Note: No need to set :last-entry-type as no text was inserted.
+               nil)
+              ((equal (map-elt update 'sessionUpdate) "usage_update")
+               ;; Extract context window and cost information
+               (agent-shell--update-usage-from-notification :state state :update update)
+               ;; Note: This is session-level state, no need to set :last-entry-type
                nil)
               (t
                (agent-shell--update-fragment
@@ -3068,6 +3117,9 @@ If FILE-PATH is not an image, returns nil."
                    ;; a session prompt request is finished.
                    ;; Avoid accumulating them unnecessarily.
                    (map-put! (agent-shell--state) :tool-calls nil)
+                   ;; Extract usage information from response
+                   (when (map-elt response 'usage)
+                     (agent-shell--save-usage :state (agent-shell--state) :acp-usage (map-elt response 'usage)))
                    (let ((success (equal (map-elt response 'stopReason)
                                          "end_turn")))
                      (unless success
