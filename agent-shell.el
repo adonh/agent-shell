@@ -4297,12 +4297,13 @@ joined string if JOINER is provided."
                   rows
                   (make-list (length columns) 0)))
          (result (mapcar (lambda (row)
-                           (string-join
-                            (seq-mapn (lambda (cell width)
-                                        (format (format "%%-%ds" width) (or cell "")))
-                                      row
-                                      widths)
-                            separator))
+                           (string-trim-right
+                            (string-join
+                             (seq-mapn (lambda (cell width)
+                                         (format (format "%%-%ds" width) (or cell "")))
+                                       row
+                                       widths)
+                             separator)))
                          rows)))
     (if joiner
         (string-join result joiner)
