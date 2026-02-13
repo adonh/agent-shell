@@ -267,6 +267,13 @@ Can be one of:
                  (const :tag "No header" nil))
   :group 'agent-shell)
 
+(defcustom agent-shell-deferred-initialization t
+  "Non-nil to defer session initialization until the first prompt is submitted.
+
+Default to t for now while stabilizing automatic initialization."
+  :type 'boolean
+  :group 'agent-shell)
+
 (defcustom agent-shell-show-welcome-message t
   "Non-nil to show welcome message."
   :type 'boolean
@@ -2015,12 +2022,13 @@ variable (see makunbound)"))
          :config shell-maker--config
          :output (funcall (map-elt config :welcome-function)
                           shell-maker--config)))
-      ;; Kick off ACP bootstrapping.
-      (agent-shell--handle :shell-buffer shell-buffer)
-      ;; (shell-maker-finish-output
-      ;;  :config shell-maker--config
-       ;; :success nil)
-      )
+      (if agent-shell-deferred-initialization
+          ;; Show prompt now (unbootstrapped).
+          (shell-maker-finish-output
+           :config shell-maker--config
+           :success nil)
+        ;; Kick off ACP session bootstrapping.
+        (agent-shell--handle :shell-buffer shell-buffer)))
     ;; Display buffer if no-focus was nil, respecting agent-shell-display-action
     (unless no-focus
       (agent-shell--display-buffer shell-buffer))
