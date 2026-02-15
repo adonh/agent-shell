@@ -3215,16 +3215,16 @@ for the current year, or \"Mon DD, YYYY\" for other years."
 MAX-DIR-WIDTH is the column width for the directory name.
 MAX-TITLE-WIDTH is the column width for the title."
   (let* ((dir-name (agent-shell--session-dir-name acp-session))
-         (dir (propertize dir-name 'face 'font-lock-keyword-face))
-         (dir-padding (make-string (max 2 (- max-dir-width (length dir-name))) ?\s))
+         (dir-padding (make-string (- (+ max-dir-width 1) (length dir-name)) ?\s))
+         (dir-col (propertize (concat dir-name dir-padding) 'face 'font-lock-keyword-face))
          (title (agent-shell--session-title acp-session))
+         (title-padding (make-string (- (+ max-title-width 1) (length title)) ?\s))
          (updated-at (or (map-elt acp-session 'updatedAt)
                          (map-elt acp-session 'createdAt)
                          "unknown-time"))
          (date-str (propertize (agent-shell--format-session-date updated-at)
-                               'face 'font-lock-comment-face))
-         (padding (make-string (max 2 (- max-title-width (length title))) ?\s)))
-    (concat dir dir-padding title padding date-str)))
+                               'face 'font-lock-comment-face)))
+    (concat dir-col title title-padding date-str)))
 
 (defun agent-shell--prompt-select-session (acp-sessions)
   "Prompt to choose one from ACP-SESSIONS.
