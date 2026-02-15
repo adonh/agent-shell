@@ -1116,55 +1116,25 @@ code block content with spaces
   (should (equal (agent-shell--format-session-date "not-a-date")
                  "not-a-date")))
 
-(ert-deftest agent-shell--prompt-select-session-to-load-test ()
-  "Test `agent-shell--prompt-select-session-to-load' choices."
-  (let* ((session-a '((sessionId . "session-1")
+(ert-deftest agent-shell--prompt-select-session-test ()
+  "Test `agent-shell--prompt-select-session' choices."
+  (let* ((noninteractive t)
+         (session-a '((sessionId . "session-1")
                       (title . "First")
+                      (cwd . "/home/user/project-a")
                       (updatedAt . "2026-01-19T14:00:00Z")))
          (session-b '((sessionId . "session-2")
                       (title . "Second")
+                      (cwd . "/home/user/project-b")
                       (updatedAt . "2026-01-20T16:00:00Z")))
          (sessions (list session-a session-b)))
-    ;; Select existing session
-    (cl-letf (((symbol-function 'completing-read)
-               (lambda (&rest _args)
-                 (agent-shell--session-choice-label session-b))))
-      (should (equal (agent-shell--prompt-select-session-to-load sessions)
-                     session-b)))
-    ;; Select "new session" option
-    (cl-letf (((symbol-function 'completing-read)
-               (lambda (&rest _args)
-                 agent-shell--start-new-session-choice)))
-      (should-not (agent-shell--prompt-select-session-to-load sessions)))))
+    ;; noninteractive falls back to (car acp-sessions)
+    (should (equal (agent-shell--prompt-select-session sessions)
+                   session-a))))
 
-(ert-deftest agent-shell--session-picker-sort-test ()
-  "Test `agent-shell--session-picker-sort' keeps the new-session option first."
-  (let* ((session-a-label "First  Jan 19, 14:00")
-         (session-b-label "Second  Jan 20, 16:00")
-         (candidates (list session-a-label
-                           agent-shell--start-new-session-choice
-                           session-b-label)))
-    (should (equal (agent-shell--session-picker-sort candidates)
-                   (list agent-shell--start-new-session-choice
-                         session-a-label
-                         session-b-label)))))
-
-(ert-deftest agent-shell--prompt-select-session-to-load-defaults-to-new-session-test ()
-  "Test prompt defaults to `agent-shell--start-new-session-choice'."
-  (let* ((session-a '((sessionId . "session-1")
-                      (title . "First")
-                      (updatedAt . "2026-01-19T14:00:00Z")))
-         (session-b '((sessionId . "session-2")
-                      (title . "Second")
-                      (updatedAt . "2026-01-20T16:00:00Z")))
-         (sessions (list session-a session-b))
-         (captured-default nil))
-    (cl-letf (((symbol-function 'completing-read)
-               (lambda (&rest args)
-                 (setq captured-default (nth 6 args))
-                 agent-shell--start-new-session-choice)))
-      (agent-shell--prompt-select-session-to-load sessions)
-      (should (equal captured-default agent-shell--start-new-session-choice)))))
+(ert-deftest agent-shell--prompt-select-session-nil-sessions-test ()
+  "Test `agent-shell--prompt-select-session' returns nil for empty sessions."
+  (should-not (agent-shell--prompt-select-session nil)))
 
 (ert-deftest agent-shell--initiate-session-strategy-new-skips-list-load ()
   "Test `agent-shell--initiate-session' skips list/load when strategy is `new'."
