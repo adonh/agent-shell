@@ -980,7 +980,7 @@ code block content with spaces
 (ert-deftest agent-shell--initiate-session-prefers-list-and-load-when-supported ()
   "Test `agent-shell--initiate-session' prefers session/list + session/load."
   (with-temp-buffer
-    (let* ((agent-shell-session-load-strategy 'latest)
+    (let* ((agent-shell-session-strategy 'latest)
            (requests '())
            (session-init-called nil)
            (state `((:buffer . ,(current-buffer))
@@ -1044,7 +1044,7 @@ code block content with spaces
 (ert-deftest agent-shell--initiate-session-falls-back-to-new-on-list-failure ()
   "Test `agent-shell--initiate-session' falls back to session/new on list failure."
   (with-temp-buffer
-    (let* ((agent-shell-session-load-strategy 'latest)
+    (let* ((agent-shell-session-strategy 'latest)
            (requests '())
            (session-init-called nil)
            (state `((:buffer . ,(current-buffer))
@@ -1139,7 +1139,7 @@ code block content with spaces
 (ert-deftest agent-shell--initiate-session-strategy-new-skips-list-load ()
   "Test `agent-shell--initiate-session' skips list/load when strategy is `new'."
   (with-temp-buffer
-    (let* ((agent-shell-session-load-strategy 'new)
+    (let* ((agent-shell-session-strategy 'new)
            (requests '())
            (session-init-called nil)
            (state `((:buffer . ,(current-buffer))

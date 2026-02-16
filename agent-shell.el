@@ -268,13 +268,6 @@ Can be one of:
                  (const :tag "No header" nil))
   :group 'agent-shell)
 
-(defcustom agent-shell-deferred-initialization t
-  "Non-nil to defer session initialization until the first prompt is submitted.
-
-Default to t for now while stabilizing automatic initialization."
-  :type 'boolean
-  :group 'agent-shell)
-
 (defcustom agent-shell-show-welcome-message t
   "Non-nil to show welcome message."
   :type 'boolean
@@ -452,19 +445,20 @@ When non-nil (and supported by agent), prefer ACP session resumes over loading."
   :type 'boolean
   :group 'agent-shell)
 
-(defcustom agent-shell-session-load-strategy 'new
-  "How to choose an existing session.
-
-Only possible if either `session/list' or `session/load' are available.
+(defcustom agent-shell-session-strategy 'new-deferred
+  "How to handle sessions when starting a new shell.
 
 Available values:
 
-  `latest': Load the latest session from `session/list'.
-  `prompt': Prompt to choose a session (or start new).
-  `new': Always start a new session, skip list/load."
-  :type '(choice (const :tag "Load latest session" latest)
-                 (const :tag "Prompt for session" prompt)
-                 (const :tag "Always start new session" new))
+  `new-deferred': Start a new session, but defer initialization until the
+                  first prompt is submitted.
+  `new': Always start a new session.
+  `latest': Always load/resume the latest session.
+  `prompt': Always prompt to choose a session (or start a new one)."
+  :type '(choice (const :tag "New session, deferred init" new-deferred)
+                 (const :tag "Always start new session" new)
+                 (const :tag "Load latest session" latest)
+                 (const :tag "Prompt for session" prompt))
   :group 'agent-shell)
 
 (defun agent-shell--resolve-preferred-config ()
@@ -667,8 +661,7 @@ handles viewport mode detection, existing shell reuse, and project context."
                      (t
                       (agent-shell--shell-buffer)))))
           (if (and new-shell
-                   (not agent-shell-deferred-initialization)
-                   (eq agent-shell-session-load-strategy 'prompt))
+                   (eq agent-shell-session-strategy 'prompt))
               ;; Defer viewport display until session is selected.
               (agent-shell-subscribe-to
                :shell-buffer shell-buffer
@@ -912,7 +905,7 @@ Flow:
     (unless (derived-mode-p 'agent-shell-mode)
       (error "Not in a shell"))
     (when (and command
-               (not agent-shell-deferred-initialization)
+               (not (eq agent-shell-session-strategy 'new-deferred))
                (not (map-nested-elt (agent-shell--state) '(:session :id))))
       (user-error "Session not ready... please wait"))
     (map-put! (agent-shell--state) :request-count
@@ -2211,7 +2204,7 @@ variable (see makunbound)"))
          :config shell-maker--config
          :output (funcall (map-elt config :welcome-function)
                           shell-maker--config)))
-      (if agent-shell-deferred-initialization
+      (if (eq agent-shell-session-strategy 'new-deferred)
           ;; Show prompt now (unbootstrapped).
           (shell-maker-finish-output
            :config shell-maker--config
@@ -2219,8 +2212,7 @@ variable (see makunbound)"))
         ;; Kick off ACP session bootstrapping.
         (agent-shell--handle :shell-buffer shell-buffer)))
     ;; Subscribe to session selection events (needed regardless of focus).
-    (when (and (not agent-shell-deferred-initialization)
-               (eq agent-shell-session-load-strategy 'prompt))
+    (when (eq agent-shell-session-strategy 'prompt)
       (agent-shell-subscribe-to
        :shell-buffer shell-buffer
        :event 'session-selection-cancelled
@@ -2244,8 +2236,7 @@ variable (see makunbound)"))
                      (agent-shell-active-message-hide :active-message active-message)))))
     ;; Display buffer if no-focus was nil, respecting agent-shell-display-action
     (unless no-focus
-      (if (and (not agent-shell-deferred-initialization)
-               (eq agent-shell-session-load-strategy 'prompt))
+      (if (eq agent-shell-session-strategy 'prompt)
           ;; Defer display until user selects a session.
           ;; Why? The experience is janky to display a buffer
           ;; and soon after that prompt the user for input.
@@ -3260,7 +3251,7 @@ Must provide ON-SESSION-INIT (lambda ())."
   (if (and (map-elt (agent-shell--state) :supports-session-list)
            (or (map-elt (agent-shell--state) :supports-session-load)
                (map-elt (agent-shell--state) :supports-session-resume))
-           (not (eq agent-shell-session-load-strategy 'new)))
+           (not (memq agent-shell-session-strategy '(new-deferred new))))
       (agent-shell--initiate-session-list-and-load
        :shell-buffer shell-buffer
        :on-session-init on-session-init)
@@ -3485,12 +3476,13 @@ Falls back to latest session in batch mode (e.g. tests)."
                  (let ((acp-sessions (append (or (map-elt acp-response 'sessions) '()) nil)))
                    (condition-case nil
                        (let* ((acp-session
-                               (pcase agent-shell-session-load-strategy
+                               (pcase agent-shell-session-strategy
+                                 ('new-deferred nil)
                                  ('new nil)
                                  ('latest (car acp-sessions))
                                  ('prompt (agent-shell--prompt-select-session acp-sessions))
-                                 (_ (message "Unknown session load strategy '%s', starting a new session"
-                                             agent-shell-session-load-strategy)
+                                 (_ (message "Unknown session strategy '%s', starting a new session"
+                                             agent-shell-session-strategy)
                                     nil)))
                               (acp-session-id (and acp-session
                                                    (map-elt acp-session 'sessionId))))
