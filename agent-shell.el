@@ -885,7 +885,8 @@ When FORCE is non-nil, skip confirmation prompt."
   "C-c C-c" #'agent-shell-interrupt
   "C-c C-m" #'agent-shell-set-session-mode
   "C-c C-v" #'agent-shell-set-session-model
-  "C-c C-o" #'agent-shell-other-buffer)
+  "C-c C-o" #'agent-shell-other-buffer
+  "<remap> <yank>" #'agent-shell-yank-dwim)
 
 (shell-maker-define-major-mode (agent-shell--make-shell-maker-config) agent-shell-mode-map)
 
@@ -1918,9 +1919,10 @@ DESTINATION-DIR is required and must be provided."
        (t
         file-path)))))
 
-(cl-defun agent-shell--save-clipboard-image (&key destination-dir)
+(cl-defun agent-shell--save-clipboard-image (&key destination-dir no-error)
   "Save clipboard image to DESTINATION-DIR.
-Returns the full path to the saved image file on success."
+Returns the full path to the saved image file on success.
+When NO-ERROR is non-nil, return nil instead of signaling errors."
   (unless destination-dir
     (error "Destination-dir is required"))
   (let* ((file-path (expand-file-name
@@ -1931,21 +1933,26 @@ Returns the full path to the saved image file on success."
                    (lambda (h)
                      (executable-find (map-elt h :command)))
                    agent-shell-clipboard-image-handlers)))
-    (unless handler
-      (error "No clipboard image utility found (tried: %s)"
-             (mapconcat (lambda (h) (map-elt h :command))
-                        agent-shell-clipboard-image-handlers ", ")))
-    (unless (file-directory-p destination-dir)
-      (make-directory destination-dir t))
-    (funcall (map-elt handler :save) file-path)
     (cond
-     ((not (file-exists-p file-path))
-      (error "Clipboard image file was not created"))
-     ((zerop (nth 7 (file-attributes file-path)))
-      (delete-file file-path)
-      (error "No image found in clipboard"))
+     ((not handler)
+      (unless no-error
+        (error "No clipboard image utility found (tried: %s)"
+               (mapconcat (lambda (h) (map-elt h :command))
+                          agent-shell-clipboard-image-handlers ", "))))
      (t
-      file-path))))
+      (unless (file-directory-p destination-dir)
+        (make-directory destination-dir t))
+      (funcall (map-elt handler :save) file-path)
+      (cond
+       ((not (file-exists-p file-path))
+        (unless no-error
+          (error "Clipboard image file was not created")))
+       ((zerop (nth 7 (file-attributes file-path)))
+        (delete-file file-path)
+        (unless no-error
+          (error "No image found in clipboard")))
+       (t
+        file-path))))))
 
 (defun agent-shell--status-label (status)
   "Convert STATUS codes to user-visible labels."
@@ -4176,6 +4183,20 @@ When PICK-SHELL is non-nil, prompt for which shell buffer to use."
   "Like `agent-shell-send-clipboard-image' but prompt for which shell to use."
   (interactive)
   (agent-shell-send-clipboard-image t))
+
+(defun agent-shell-yank-dwim (&optional arg)
+  "Yank or paste clipboard image into `agent-shell'.
+If the clipboard contains an image, save it and insert as file context.
+Otherwise, invoke `yank' with ARG as usual."
+  (interactive "*P")
+  (let* ((screenshots-dir (expand-file-name ".agent-shell/screenshots" (agent-shell-cwd)))
+         (image-path (agent-shell--save-clipboard-image :destination-dir screenshots-dir
+                                                        :no-error t)))
+    (if image-path
+        (agent-shell-insert
+         :text (agent-shell--get-files-context :files (list image-path))
+         :shell-buffer (agent-shell--shell-buffer))
+      (yank arg))))
 
 ;;; Permissions
 

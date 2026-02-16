@@ -781,6 +781,7 @@ For example, offer to kill associated shell session."
     (define-key map (kbd "C-c C-m") #'agent-shell-viewport-set-session-mode)
     (define-key map (kbd "C-c C-v") #'agent-shell-viewport-set-session-model)
     (define-key map (kbd "C-c C-o") #'agent-shell-other-buffer)
+    (define-key map [remap yank] #'agent-shell-yank-dwim)
     map)
   "Keymap for `agent-shell-viewport-edit-mode'.")
 
